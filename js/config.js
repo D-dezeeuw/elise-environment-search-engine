@@ -47,14 +47,19 @@ export const RADIUS_FLOOR_M = 250;
 
 export const MAX_RESULTS = 30;
 
-// Primary + mirror. Tried in order; one user action = at most one request
-// per endpoint, no polling, no auto-refresh.
+// Planet-wide, CORS-open public instances, tried in order. One user action
+// = one request per endpoint per pass (max two passes), no polling, no
+// auto-refresh. private.coffee and kumi.systems share an operator but are
+// separate deployments; both exist because overpass-api.de rate-limits
+// aggressively under load.
 export const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
 ];
 export const OVERPASS_TIMEOUT_S = 25; // server-side
 export const CLIENT_TIMEOUT_MS = 30000; // abort a hung connection just after
+export const OVERPASS_RETRY_DELAY_MS = 2000; // second pass, after limits clear
 
 export const WIKI_ENDPOINT = 'https://en.wikipedia.org/w/api.php';
 export const WIKI_MAX_RADIUS_M = 10000; // hard API limit on ggsradius

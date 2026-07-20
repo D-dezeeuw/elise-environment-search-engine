@@ -94,9 +94,15 @@ const runSearch = async () => {
 
   if (op.status === 'rejected') {
     console.error('[elise] overpass failed:', op.reason);
+    const messages = {
+      busy: 'The places service is busy right now (rate limited). Give it a few seconds and retry.',
+      timeout: 'The search timed out — the area may be too big. Try less time, or retry.',
+      query: 'This search confused the places service — please report it.',
+      network: 'Could not reach the places service — check your connection and retry.',
+    };
     setValue('results', []);
     setValue('resultCount', 0);
-    setValue('error', 'Could not reach the places service — it may be busy. Give it a minute and retry.');
+    setValue('error', messages[op.reason?.kind] ?? messages.network);
     setValue('screen', 'results');
     return;
   }

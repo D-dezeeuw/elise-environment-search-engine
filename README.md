@@ -20,7 +20,8 @@ Time × transport becomes a search radius (halved for the round trip, capped at
 30 km). ELISE then asks two keyless open APIs around your geolocation:
 
 - **[Overpass API](https://wiki.openstreetmap.org/wiki/Overpass_API)** (OpenStreetMap)
-  for places by category, with a mirror fallback
+  for places by category — tries overpass-api.de, then the private.coffee and
+  kumi.systems mirrors, with one delayed retry pass before giving up
 - **[Wikipedia GeoSearch](https://www.mediawiki.org/wiki/API:Geosearch)** for landmark
   descriptions and photos, used to enrich and rank results
 
