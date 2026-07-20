@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ELISE — Environment Local Interest Search Engine</title>
+  <meta name="description" content="Tell ELISE how much time, transport and budget you have — it finds parks, sights, swims and coffee around you.">
+  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf3e7">
+  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0722">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌴</text></svg>">
+  <link rel="stylesheet" href="./styles.css">
+
+  <!-- Set the theme before first paint so a saved dark theme doesn't flash sand. -->
+  <script>
+    (function () {
+      var t = null;
+      try { t = (JSON.parse(localStorage.getItem('elise.params') || '{}') || {}).theme; } catch (e) {}
+      if (t !== 'light' && t !== 'dark') {
+        t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "spektrum": "https://unpkg.com/spektrum@0/spektrum.min.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="app" data-cloak>
+
+    <header class="header">
+      <button type="button" class="theme-toggle" data-action="click" data-fn="toggleTheme"
+              :aria-label="theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'">
+        {{theme === 'dark' ? '☀️' : '🌙'}}
+      </button>
+      <h1 class="logo">ELISE</h1>
+      <p class="tagline">Environment · Local Interest · Search Engine</p>
+    </header>
+
+    <main>
+      <!-- ============ params ============ -->
+      <section class="screen" data-if="screen === 'params'">
+        <p class="intro">What's around you, for the time, wheels and budget you've got.</p>
+
+        <div class="field">
+          <span class="label" id="lbl-time">How much time do you have?</span>
+          <div class="chips" role="group" aria-labelledby="lbl-time">
+            <button type="button" class="chip" data-action="click" data-fn="setTime" data-value="15"
+                    :class="{active: timeMinutes === 15}" :aria-pressed="timeMinutes === 15">15 min</button>
+            <button type="button" class="chip" data-action="click" data-fn="setTime" data-value="30"
+                    :class="{active: timeMinutes === 30}" :aria-pressed="timeMinutes === 30">30 min</button>
+            <button type="button" class="chip" data-action="click" data-fn="setTime" data-value="60"
+                    :class="{active: timeMinutes === 60}" :aria-pressed="timeMinutes === 60">1 hour</button>
+            <button type="button" class="chip" data-action="click" data-fn="setTime" data-value="120"
+                    :class="{active: timeMinutes === 120}" :aria-pressed="timeMinutes === 120">2 hours</button>
+            <button type="button" class="chip" data-action="click" data-fn="setTime" data-value="180"
+                    :class="{active: timeMinutes === 180}" :aria-pressed="timeMinutes === 180">3 hours</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <span class="label" id="lbl-transport">How are you getting around?</span>
+          <div class="segmented" role="group" aria-labelledby="lbl-transport">
+            <button type="button" data-action="click" data-fn="setTransport" data-value="walking"
+                    :class="{active: transport === 'walking'}" :aria-pressed="transport === 'walking'">🚶<span>Walk</span></button>
+            <button type="button" data-action="click" data-fn="setTransport" data-value="cycling"
+                    :class="{active: transport === 'cycling'}" :aria-pressed="transport === 'cycling'">🚲<span>Bike</span></button>
+            <button type="button" data-action="click" data-fn="setTransport" data-value="driving"
+                    :class="{active: transport === 'driving'}" :aria-pressed="transport === 'driving'">🚗<span>Drive</span></button>
+            <button type="button" data-action="click" data-fn="setTransport" data-value="transit"
+                    :class="{active: transport === 'transit'}" :aria-pressed="transport === 'transit'">🚌<span>Transit</span></button>
+          </div>
+          <p class="hint" data-if="transport === 'transit'">Transit range is a rough straight-line estimate for now.</p>
+        </div>
+
+        <div class="field">
+          <span class="label" id="lbl-budget">What's your budget?</span>
+          <div class="chips" role="group" aria-labelledby="lbl-budget">
+            <button type="button" class="chip" data-action="click" data-fn="setBudget" data-value="free"
+                    :class="{active: budget === 'free'}" :aria-pressed="budget === 'free'">Free</button>
+            <button type="button" class="chip" data-action="click" data-fn="setBudget" data-value="freeplus"
+                    :class="{active: budget === 'freeplus'}" :aria-pressed="budget === 'freeplus'">Free+</button>
+            <button type="button" class="chip" data-action="click" data-fn="setBudget" data-value="paid"
+                    :class="{active: budget === 'paid'}" :aria-pressed="budget === 'paid'">Paid</button>
+            <button type="button" class="chip" data-action="click" data-fn="setBudget" data-value="open"
+                    :class="{active: budget === 'open'}" :aria-pressed="budget === 'open'">Open</button>
+          </div>
+          <p class="hint" data-if="budget === 'free'">Parks, views, beaches, sights — no wallet needed.</p>
+          <p class="hint" data-if="budget === 'freeplus'">Free things, plus places that are free to enter but tempt you to spend — like a good coffee.</p>
+          <p class="hint" data-if="budget === 'paid'">Museums, pools, shows and other tickets-and-tables places.</p>
+          <p class="hint" data-if="budget === 'open'">Budget's no filter — show everything nearby.</p>
+        </div>
+
+        <button type="button" class="cta" data-action="click" data-fn="startSearch">Find things nearby</button>
+        <p class="hint radius-hint">Searching ≈ {{radiusPreview}} around you</p>
+
+        <div class="fallback" data-if="locationStatus === 'denied' || locationStatus === 'manual'">
+          <p class="fallback-title">📍 No location? No problem — pick a starting point:</p>
+          <div class="manual-row">
+            <input data-model="manualCoords" inputmode="decimal" placeholder="52.37, 4.89"
+                   aria-label="Coordinates as latitude, longitude">
+            <button type="button" class="chip" data-action="click" data-fn="useManualCoords">Go</button>
+          </div>
+          <p class="error" data-if="error">{{error}}</p>
+          <div class="chips">
+            <button type="button" class="chip" data-action="click" data-fn="usePresetPlace"
+                    data-lat="52.3728" data-lon="4.8936" data-label="Amsterdam">Amsterdam</button>
+            <button type="button" class="chip" data-action="click" data-fn="usePresetPlace"
+                    data-lat="51.9225" data-lon="4.4792" data-label="Rotterdam">Rotterdam</button>
+            <button type="button" class="chip" data-action="click" data-fn="usePresetPlace"
+                    data-lat="52.0908" data-lon="5.1222" data-label="Utrecht">Utrecht</button>
+            <button type="button" class="chip" data-action="click" data-fn="usePresetPlace"
+                    data-lat="52.0799" data-lon="4.3113" data-label="The Hague">The Hague</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ loading ============ -->
+      <section class="screen loading-screen" data-if="screen === 'loading'" aria-live="polite">
+        <div class="spinner" role="img" aria-label="Searching"></div>
+        <p class="loading-message">{{loadingMessage}}</p>
+      </section>
+
+      <!-- ============ results ============ -->
+      <section class="screen" data-if="screen === 'results'">
+        <div class="summary-bar">
+          <span class="summary">{{searchSummary}}</span>
+          <button type="button" class="chip" data-action="click" data-fn="newSearch">Change</button>
+        </div>
+
+        <div class="error-banner" data-if="error">
+          <p>{{error}}</p>
+          <button type="button" class="chip" data-action="click" data-fn="retrySearch">Retry</button>
+        </div>
+
+        <p class="result-count" data-if="resultCount" aria-live="polite">
+          Found {{resultCount}} spots near {{locationLabel}}
+        </p>
+
+        <div class="empty" data-if="resultCount === 0 &amp;&amp; !error">
+          <p class="empty-icon">🐚</p>
+          <p>Nothing washed up here. Try more time, faster wheels, or the Open budget.</p>
+        </div>
+
+        <ul class="cards" data-each="results" data-as="r" data-key="r.id">
+          <li class="card">
+            <div class="media">
+              <img data-if="r.thumbnail" :src="r.thumbnail || blankImg" alt="" loading="lazy">
+              <span class="media-icon" data-if="!r.thumbnail">{{r.icon}}</span>
+            </div>
+            <div class="card-body">
+              <h2 class="card-title">{{r.name}}</h2>
+              <p class="meta">
+                <span class="badge" :class="{free: r.tier === 'free', freeplus: r.tier === 'freeplus', paid: r.tier === 'paid'}">{{r.tierLabel}}</span>
+                {{r.categoryLabel}} · {{r.distanceLabel}} · {{r.travelLabel}}
+              </p>
+              <p class="desc" data-if="r.description">{{r.description}}</p>
+              <p class="links">
+                <a class="link-primary" :href="r.directionsUrl" target="_blank" rel="noopener">Directions</a>
+                <a :href="r.osmUrl" target="_blank" rel="noopener">Map</a>
+                <a data-if="r.wikiUrl" :href="r.wikiUrl" target="_blank" rel="noopener">Wikipedia</a>
+              </p>
+            </div>
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+        contributors via Overpass API · Landmarks from
+        <a href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a></p>
+      <p>Built with <a href="https://github.com/D-dezeeuw/spektrum" target="_blank" rel="noopener">spektrum</a> 🌴</p>
+    </footer>
+  </div>
+
+  <noscript><p class="noscript">ELISE needs JavaScript to look around you.</p></noscript>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
