@@ -44,6 +44,9 @@
       <section class="screen" data-if="screen === 'params'">
         <p class="intro">What's around you, for the time, wheels and budget you've got.</p>
 
+        <p class="location-line" data-if="locationStatus === 'locating'">📍 Finding your location…</p>
+        <p class="location-line" data-if="locationStatus === 'ready' || locationStatus === 'manual'">📍 {{locationLabel}}</p>
+
         <div class="field">
           <span class="label" id="lbl-time">How much time do you have?</span>
           <div class="chips" role="group" aria-labelledby="lbl-time">
@@ -154,12 +157,14 @@
               <h2 class="card-title">{{r.name}}</h2>
               <p class="meta">
                 <span class="badge" :class="{free: r.tier === 'free', freeplus: r.tier === 'freeplus', paid: r.tier === 'paid'}">{{r.tierLabel}}</span>
-                {{r.categoryLabel}} · {{r.distanceLabel}} · {{r.travelLabel}}
+                {{r.categoryLabel}}{{r.cuisineLabel}} · {{r.distanceLabel}} · {{r.travelLabel}}
               </p>
+              <p class="hours" data-if="r.openingHours">🕐 {{r.openingHours}}</p>
               <p class="desc" data-if="r.description">{{r.description}}</p>
               <p class="links">
                 <a class="link-primary" :href="r.directionsUrl" target="_blank" rel="noopener">Directions</a>
                 <a :href="r.osmUrl" target="_blank" rel="noopener">Map</a>
+                <a data-if="r.website" :href="r.website" target="_blank" rel="noopener">Website</a>
                 <a data-if="r.wikiUrl" :href="r.wikiUrl" target="_blank" rel="noopener">Wikipedia</a>
               </p>
             </div>

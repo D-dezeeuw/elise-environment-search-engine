@@ -7,7 +7,7 @@
   non-fatal — the app degrades to Overpass-only results.
 */
 
-import { WIKI_ENDPOINT, WIKI_MAX_RADIUS_M } from './config.js';
+import { WIKI_ENDPOINT, WIKI_MAX_RADIUS_M, WIKI_TIMEOUT_MS } from './config.js';
 
 export async function wikipediaSearch(lat, lon, radiusM) {
   // ggsradius is hard-capped by the API at 10 km.
@@ -31,12 +31,18 @@ export async function wikipediaSearch(lat, lon, radiusM) {
     exlimit: '20',
   };
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  // Hard timeout: a black-holed connection here must never stall the
+  // search — enrichment is optional, the spinner is not.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), WIKI_TIMEOUT_MS);
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) return [];
     const json = await res.json();
     return Object.values(json?.query?.pages ?? {});
   } catch {
     return [];
+  } finally {
+    clearTimeout(timer);
   }
 }
