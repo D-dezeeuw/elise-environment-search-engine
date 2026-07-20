@@ -17,6 +17,7 @@ import { overpassSearch } from './js/overpass.js';
 import { wikipediaSearch } from './js/wikipedia.js';
 import { reverseGeocode } from './js/geocode.js';
 import { mergeAndRank } from './js/results.js';
+import { buildMapModel } from './js/staticmap.js';
 import { logEvent, onLog } from './js/log.js';
 
 const PARAMS_KEY = 'elise.params';
@@ -53,6 +54,7 @@ setValue('blankImg', BLANK_IMG);
 setValue('toasts', []);
 setValue('logs', []);
 setValue('logOpen', false);
+setValue('map', null);
 
 // --- toasts + activity log ---
 let toastSeq = 0;
@@ -109,6 +111,7 @@ const ERROR_MESSAGES = {
 const finishWithError = (kind) => {
   setValue('results', []);
   setValue('resultCount', 0);
+  setValue('map', null);
   setValue('error', ERROR_MESSAGES[kind] ?? ERROR_MESSAGES.unknown);
   setValue('screen', 'results');
 };
@@ -164,6 +167,10 @@ const runSearch = async () => {
     );
     setValue('results', merged);
     setValue('resultCount', merged.length);
+    const mapW = Math.min(600, Math.max(280, Math.round((window.innerWidth || 600) - 40)));
+    setValue('map', merged.length
+      ? buildMapModel({ lat, lon, radiusM: area.radiusM, results: merged, width: mapW, height: 300 })
+      : null);
     setValue('screen', 'results');
     logEvent(`Search: finished — ${merged.length} places shown`);
     if (merged.length) toast(`✨ ${merged.length} places loaded`);
@@ -281,6 +288,13 @@ defineFn('newSearch', () => {
 });
 
 defineFn('toggleLog', () => setValue('logOpen', !appState.logOpen));
+
+// The print dialog is every phone's native "Save as PDF" — the print
+// stylesheet turns the results into a clean document.
+defineFn('savePdf', () => {
+  logEvent('Export: print/PDF dialog opened');
+  window.print();
+});
 
 bindDOM();
 run();

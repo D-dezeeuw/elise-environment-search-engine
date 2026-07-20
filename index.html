@@ -130,7 +130,10 @@
       <section class="screen" data-if="screen === 'results'">
         <div class="summary-bar">
           <span class="summary">{{searchSummary}}</span>
-          <button type="button" class="chip" data-action="click" data-fn="newSearch">Change</button>
+          <span class="summary-actions">
+            <button type="button" class="chip" data-if="resultCount" data-action="click" data-fn="savePdf">PDF</button>
+            <button type="button" class="chip" data-action="click" data-fn="newSearch">Change</button>
+          </span>
         </div>
 
         <div class="error-banner" data-if="error">
@@ -141,6 +144,21 @@
         <p class="result-count" data-if="resultCount" aria-live="polite">
           Found {{resultCount}} spots near {{locationLabel}}
         </p>
+
+        <div class="map-card" data-if="map">
+          <div class="map-frame" :style="map.frameStyle">
+            <div class="map-tiles" data-each="map.tiles" data-as="tl" data-key="tl.id">
+              <img class="map-tile" :src="tl.src" :style="tl.style" alt="">
+            </div>
+            <div class="map-circle" :style="map.circleStyle"></div>
+            <div class="map-pins" data-each="map.pins" data-as="p" data-key="p.n">
+              <div class="map-pin" :class="{freeplus: p.tier === 'freeplus', paid: p.tier === 'paid'}"
+                   :style="p.style" :title="p.name">{{p.n}}</div>
+            </div>
+            <div class="map-origin" :style="map.originStyle">📍</div>
+            <span class="map-attrib">© OpenStreetMap</span>
+          </div>
+        </div>
 
         <div class="empty" data-if="resultCount === 0 &amp;&amp; !error">
           <p class="empty-icon">🐚</p>
@@ -154,11 +172,12 @@
               <span class="media-icon" data-if="!r.thumbnail">{{r.icon}}</span>
             </div>
             <div class="card-body">
-              <h2 class="card-title">{{r.name}}</h2>
+              <h2 class="card-title"><span class="card-n">{{r.n}}</span> {{r.name}}</h2>
               <p class="meta">
                 <span class="badge" :class="{free: r.tier === 'free', freeplus: r.tier === 'freeplus', paid: r.tier === 'paid'}">{{r.tierLabel}}</span>
                 {{r.categoryLabel}}{{r.cuisineLabel}} · {{r.distanceLabel}} · {{r.travelLabel}}
               </p>
+              <p class="fee print-only">💶 {{r.feeLabel}}</p>
               <p class="hours" data-if="r.openingHours">🕐 {{r.openingHours}}</p>
               <p class="desc" data-if="r.description">{{r.description}}</p>
               <p class="links">

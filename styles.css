@@ -409,6 +409,99 @@ main { flex: 1; }
 
 .empty-icon { font-size: 3rem; margin-bottom: 12px; }
 
+/* ---------- overview map ---------- */
+
+.map-card {
+  margin: 0 0 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.map-frame {
+  position: relative;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: var(--card-shadow);
+  background: var(--chip-bg);
+}
+
+.map-tile {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  user-select: none;
+  pointer-events: none;
+}
+
+:root[data-theme="dark"] .map-tile { filter: brightness(0.75) saturate(0.8); }
+
+.map-circle {
+  position: absolute;
+  border: 2px dashed var(--teal);
+  border-radius: 50%;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.map-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--green);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.map-pin.freeplus { background: var(--teal); }
+.map-pin.paid { background: var(--pink); }
+
+.map-origin {
+  position: absolute;
+  transform: translate(-50%, -90%);
+  font-size: 1.3rem;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  pointer-events: none;
+}
+
+.map-attrib {
+  position: absolute;
+  right: 6px;
+  bottom: 4px;
+  font-size: 0.62rem;
+  color: #333;
+  background: rgba(255, 255, 255, 0.75);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.card-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent-grad);
+  color: #fff;
+  font-size: 0.72rem;
+  vertical-align: 2px;
+  margin-right: 2px;
+}
+
+.summary-actions { display: flex; gap: 8px; }
+
 .cards { list-style: none; }
 
 .card {
@@ -679,4 +772,57 @@ main { flex: 1; }
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation-duration: 2.5s; }
   body, .chip, .segmented button, .cta { transition: none; }
+}
+
+/* ---------- print / save as PDF ---------- */
+
+.print-only { display: none; }
+
+@media print {
+  /* Paper doesn't animate — snap straight to the print colors. */
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+
+  :root, :root[data-theme="dark"] {
+    --bg: #fff;
+    --card: #fff;
+    --ink: #111;
+    --muted: #555;
+    --teal: #0a7a70;
+    --pink: #c2436f;
+    --green: #1f7a55;
+    --border: #ccc;
+    --bar-bg: #fff;
+    --card-shadow: none;
+    --logo-glow: none;
+    --glow-pink: none;
+    --glow-teal: none;
+  }
+
+  body { background-image: none; }
+  body::before { display: none; }
+
+  .theme-toggle, .log-fab, .toasts, .modal-overlay,
+  .summary-actions, .links, .error-banner, .cta { display: none !important; }
+
+  .logo {
+    background: none;
+    color: #c2436f;
+    filter: none;
+  }
+
+  .summary-bar { position: static; border-bottom: 1px solid #ccc; }
+
+  .print-only { display: block; }
+
+  .fee { font-size: 0.85rem; margin-top: 4px; }
+
+  .map-card, .card { break-inside: avoid; }
+  .card { border: 1px solid #ddd; }
+  .map-frame { border-radius: 8px; }
+  .map-tile { filter: none; }
+
+  /* Print the whole description, not the 3-line clamp. */
+  .desc { display: block; -webkit-line-clamp: unset; overflow: visible; }
+
+  .hours { white-space: normal; overflow: visible; }
 }

@@ -155,16 +155,24 @@ export function mergeAndRank(elements, wikiPages, ctx) {
     }))
     .sort((a, b) => b.score - a.score || a.distanceM - b.distanceM)
     .slice(0, MAX_RESULTS)
-    .map((p) => present(p, transport, speed));
+    .map((p, i) => present(p, transport, speed, i + 1));
 }
 
-function present(p, transport, speedKmh) {
+const FEE_LABELS = {
+  free: 'Free',
+  freeplus: 'Free to enter — pay for what you fancy',
+  paid: 'Entry or consumption costs money',
+};
+
+function present(p, transport, speedKmh, n) {
   const km = p.distanceM / 1000;
   const mins = Math.max(1, Math.round((km / speedKmh) * 60));
   const lat = p.lat.toFixed(6);
   const lon = p.lon.toFixed(6);
   return {
     id: p.id,
+    n,
+    feeLabel: FEE_LABELS[p.tier] ?? '',
     name: p.name,
     categoryLabel: p.cat.label,
     // "cafe;bar" → " · cafe" — first cuisine only, underscores prettified
