@@ -104,3 +104,17 @@ export function fragmentsForTier(tier) {
   const tiers = allowedTiers(tier);
   return CATEGORIES.filter((c) => tiers.includes(c.tier));
 }
+
+// Merge categories that share (key, named, excludes) into one selector with
+// a combined regex — 20 union members become ~11. Each member is a separate
+// index scan server-side, so fewer members = a materially cheaper query.
+export function queryGroupsForTier(tier) {
+  const groups = new Map();
+  for (const c of fragmentsForTier(tier)) {
+    const sig = `${c.key}|${c.named ? 1 : 0}|${JSON.stringify(c.excludes ?? null)}`;
+    const g = groups.get(sig);
+    if (g) g.values.push(...c.values);
+    else groups.set(sig, { key: c.key, values: [...c.values], named: c.named, excludes: c.excludes });
+  }
+  return [...groups.values()];
+}

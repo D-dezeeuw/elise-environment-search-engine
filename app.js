@@ -12,7 +12,7 @@ import {
   SPEEDS, TRANSPORT_LABELS, TIER_LABELS, TIME_PRESETS, BLANK_IMG, SEARCH_DEADLINE_MS,
 } from './js/config.js';
 import { radiusForParams, computeSearchArea } from './js/search-area.js';
-import { fragmentsForTier } from './js/categories.js';
+import { queryGroupsForTier } from './js/categories.js';
 import { overpassSearch } from './js/overpass.js';
 import { wikipediaSearch } from './js/wikipedia.js';
 import { reverseGeocode } from './js/geocode.js';
@@ -113,13 +113,6 @@ const finishWithError = (kind) => {
   setValue('screen', 'results');
 };
 
-const deadline = (ms) => new Promise((_, reject) => {
-  setTimeout(() => {
-    const err = new Error('search deadline exceeded');
-    err.kind = 'timeout';
-    reject(err);
-  }, ms);
-});
 
 // Every exit path of a search lands on a screen with a message — the
 // try/catch plus the hard deadline guarantee the spinner can't be the
@@ -129,6 +122,19 @@ const runSearch = async () => {
   if (lat == null || lon == null) return;
   setValue('error', '');
   setValue('screen', 'loading');
+  // The deadline aborts the in-flight Overpass work too — no zombie
+  // fetches piling onto rate limits after the user already saw an error.
+  const ctrl = new AbortController();
+  let deadlineTimer = null;
+  const deadlinePromise = new Promise((_, reject) => {
+    deadlineTimer = setTimeout(() => {
+      ctrl.abort();
+      const err = new Error('search deadline exceeded');
+      err.kind = 'timeout';
+      reject(err);
+    }, SEARCH_DEADLINE_MS);
+  });
+  deadlinePromise.catch(() => {}); // settled race leaves this rejection orphaned
   try {
     const area = await computeSearchArea({
       timeMinutes: appState.timeMinutes, transport: appState.transport, lat, lon,
@@ -138,10 +144,10 @@ const runSearch = async () => {
 
     const [op, wiki] = await Promise.race([
       Promise.allSettled([
-        overpassSearch(fragmentsForTier(appState.budget), area),
+        overpassSearch(queryGroupsForTier(appState.budget), area, ctrl.signal),
         wikipediaSearch(lat, lon, area.radiusM),
       ]),
-      deadline(SEARCH_DEADLINE_MS),
+      deadlinePromise,
     ]);
 
     if (op.status === 'rejected') {
@@ -165,6 +171,8 @@ const runSearch = async () => {
     console.error('[elise] search failed:', err);
     logEvent(`Search: failed (${err?.kind ?? 'unexpected error'})`, 'error');
     finishWithError(err?.kind ?? 'unknown');
+  } finally {
+    clearTimeout(deadlineTimer);
   }
 };
 

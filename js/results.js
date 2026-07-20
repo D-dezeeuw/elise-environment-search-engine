@@ -44,6 +44,10 @@ export function mergeAndRank(elements, wikiPages, ctx) {
     const pLat = el.lat ?? el.center?.lat;
     const pLon = el.lon ?? el.center?.lon;
     if (pLat == null || pLon == null) continue;
+    const distanceM = haversineM(lat, lon, pLat, pLon);
+    // The server query is a bounding box (the fast path); enforce the
+    // promised circle here by dropping the corner extras.
+    if (distanceM > radiusM) continue;
     places.push({
       id: `${el.type}/${el.id}`,
       osmType: el.type,
@@ -52,7 +56,7 @@ export function mergeAndRank(elements, wikiPages, ctx) {
       tier: cat.tier,
       lat: pLat,
       lon: pLon,
-      distanceM: haversineM(lat, lon, pLat, pLon),
+      distanceM,
       // Detail tags OSM already carries — the "tell me more" layer.
       website: tags.website || tags['contact:website'] || null,
       openingHours: tags.opening_hours || null,

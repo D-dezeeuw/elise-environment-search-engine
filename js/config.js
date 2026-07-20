@@ -57,8 +57,8 @@ export const OVERPASS_ENDPOINTS = [
   'https://overpass.private.coffee/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
 ];
-export const OVERPASS_TIMEOUT_S = 15; // server-side
-export const CLIENT_TIMEOUT_MS = 18000; // abort a hung connection just after
+export const OVERPASS_TIMEOUT_S = 12; // server-side — bbox queries are fast or not coming
+export const CLIENT_TIMEOUT_MS = 14000; // abort a hung connection just after
 export const OVERPASS_RETRY_DELAY_MS = 2000; // second pass, after limits clear
 
 export const WIKI_TIMEOUT_MS = 8000;
