@@ -181,6 +181,30 @@
     </footer>
   </div>
 
+  <!-- toasts: transient "loaded" notifications -->
+  <div class="toasts" data-each="toasts" data-as="t" data-key="t.id" aria-live="polite">
+    <div class="toast">{{t.text}}</div>
+  </div>
+
+  <!-- activity log: floating button + modal -->
+  <button type="button" class="log-fab" :class="{alert: logHasWarn}" data-action="click" data-fn="toggleLog"
+          aria-label="Show activity log">📋</button>
+
+  <div class="modal-overlay" data-if="logOpen" data-action="click.self" data-fn="toggleLog"
+       role="dialog" aria-modal="true" aria-label="Activity log">
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Activity log</h2>
+        <button type="button" class="chip" data-action="click" data-fn="toggleLog">Close</button>
+      </div>
+      <ul class="log-list" data-each="logsView" data-as="l" data-key="l.id">
+        <li :class="{warn: l.level === 'warn', error: l.level === 'error'}">
+          <span class="log-time">{{l.time}}</span>{{l.text}}
+        </li>
+      </ul>
+    </div>
+  </div>
+
   <noscript><p class="noscript">ELISE needs JavaScript to look around you.</p></noscript>
   <script type="module" src="./app.js"></script>
 </body>

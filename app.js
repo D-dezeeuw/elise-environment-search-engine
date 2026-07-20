@@ -17,6 +17,7 @@ import { overpassSearch } from './js/overpass.js';
 import { wikipediaSearch } from './js/wikipedia.js';
 import { reverseGeocode } from './js/geocode.js';
 import { mergeAndRank } from './js/results.js';
+import { logEvent, onLog } from './js/log.js';
 
 const PARAMS_KEY = 'elise.params';
 
@@ -49,6 +50,25 @@ setValue('resultCount', 0);
 setValue('error', '');
 setValue('loadingMessage', '');
 setValue('blankImg', BLANK_IMG);
+setValue('toasts', []);
+setValue('logs', []);
+setValue('logOpen', false);
+
+// --- toasts + activity log ---
+let toastSeq = 0;
+const toast = (text) => {
+  const id = ++toastSeq;
+  setValue('toasts', [...(appState.toasts ?? []), { id, text }]);
+  setTimeout(() => {
+    setValue('toasts', (appState.toasts ?? []).filter((t) => t.id !== id));
+  }, 2600);
+};
+
+onLog((entries) => setValue('logs', entries));
+
+// Newest first in the modal.
+computed('logsView', ['logs'], (s) => [...(s.logs ?? [])].reverse());
+computed('logHasWarn', ['logs'], (s) => (s.logs ?? []).some((l) => l.level !== 'info'));
 
 computed('radiusPreview', ['timeMinutes', 'transport'], (s) => {
   const { radiusM, capped } = radiusForParams(s.timeMinutes, s.transport);
@@ -113,6 +133,7 @@ const runSearch = async () => {
     const area = await computeSearchArea({
       timeMinutes: appState.timeMinutes, transport: appState.transport, lat, lon,
     });
+    logEvent(`Search: started (${appState.searchSummary})`);
     setValue('loadingMessage', `Scanning ≈${formatDistance(area.radiusM)} around ${appState.locationLabel || 'you'}…`);
 
     const [op, wiki] = await Promise.race([
@@ -125,6 +146,7 @@ const runSearch = async () => {
 
     if (op.status === 'rejected') {
       console.error('[elise] overpass failed:', op.reason);
+      logEvent(`Search: failed (${op.reason?.kind ?? 'unknown'})`, 'error');
       finishWithError(op.reason?.kind);
       return;
     }
@@ -137,8 +159,11 @@ const runSearch = async () => {
     setValue('results', merged);
     setValue('resultCount', merged.length);
     setValue('screen', 'results');
+    logEvent(`Search: finished — ${merged.length} places shown`);
+    if (merged.length) toast(`✨ ${merged.length} places loaded`);
   } catch (err) {
     console.error('[elise] search failed:', err);
+    logEvent(`Search: failed (${err?.kind ?? 'unexpected error'})`, 'error');
     finishWithError(err?.kind ?? 'unknown');
   }
 };
@@ -149,7 +174,11 @@ let pendingSearch = false;
 // Decorative label refinement — failures pass silently, coords stay valid.
 const refineLabel = async (lat, lon) => {
   const city = await reverseGeocode(lat, lon);
-  if (city && appState.lat === lat) setValue('locationLabel', city);
+  if (city && appState.lat === lat) {
+    const isNew = appState.locationLabel !== city;
+    setValue('locationLabel', city);
+    if (isNew) toast(`📍 ${city}`);
+  }
 };
 
 const applyOrigin = (lat, lon, status, label) => {
@@ -168,6 +197,7 @@ const applyOrigin = (lat, lon, status, label) => {
 
 const geoFailed = (why) => {
   console.warn('[elise] geolocation unavailable:', why);
+  logEvent(`Location: unavailable (${why ?? 'unknown'})`, 'warn');
   setValue('locationStatus', 'denied');
   if (pendingSearch || appState.screen === 'loading') {
     pendingSearch = false;
@@ -181,8 +211,12 @@ const locate = () => {
     return;
   }
   setValue('locationStatus', 'locating');
+  logEvent('Location: requesting position started');
   navigator.geolocation.getCurrentPosition(
-    (pos) => applyOrigin(pos.coords.latitude, pos.coords.longitude, 'ready', 'your area'),
+    (pos) => {
+      logEvent(`Location: fix at ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
+      applyOrigin(pos.coords.latitude, pos.coords.longitude, 'ready', 'your area');
+    },
     (err) => geoFailed(err?.message),
     { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
   );
@@ -238,8 +272,12 @@ defineFn('newSearch', () => {
   setValue('screen', 'params');
 });
 
+defineFn('toggleLog', () => setValue('logOpen', !appState.logOpen));
+
 bindDOM();
 run();
+
+logEvent('App: booted');
 
 // The new flow: locate immediately on load so the params screen can show
 // where "around you" actually is before the first search.

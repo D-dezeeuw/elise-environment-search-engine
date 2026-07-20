@@ -8,6 +8,7 @@
 */
 
 import { WIKI_ENDPOINT, WIKI_MAX_RADIUS_M, WIKI_TIMEOUT_MS } from './config.js';
+import { logEvent } from './log.js';
 
 export async function wikipediaSearch(lat, lon, radiusM) {
   // ggsradius is hard-capped by the API at 10 km.
@@ -35,12 +36,19 @@ export async function wikipediaSearch(lat, lon, radiusM) {
   // search — enrichment is optional, the spinner is not.
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), WIKI_TIMEOUT_MS);
+  logEvent(`Wikipedia: geosearch started (radius ${r} m)`);
   try {
     const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      logEvent(`Wikipedia: geosearch failed (${res.status})`, 'warn');
+      return [];
+    }
     const json = await res.json();
-    return Object.values(json?.query?.pages ?? {});
+    const pages = Object.values(json?.query?.pages ?? {});
+    logEvent(`Wikipedia: ${pages.length} nearby articles found`);
+    return pages;
   } catch {
+    logEvent('Wikipedia: geosearch failed (network/timeout)', 'warn');
     return [];
   } finally {
     clearTimeout(timer);

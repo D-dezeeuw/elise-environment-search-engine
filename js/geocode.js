@@ -8,6 +8,7 @@
 */
 
 import { GEOCODE_TIMEOUT_MS } from './config.js';
+import { logEvent } from './log.js';
 
 const fetchTimed = async (url) => {
   const ctrl = new AbortController();
@@ -23,15 +24,21 @@ const fetchTimed = async (url) => {
 };
 
 export async function reverseGeocode(lat, lon) {
+  logEvent('Geocode: resolving place name started');
   const bdc = await fetchTimed(
     `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`,
   );
   const bdcName = bdc?.city || bdc?.locality || bdc?.principalSubdivision;
-  if (bdcName) return bdcName;
+  if (bdcName) {
+    logEvent(`Geocode: resolved to “${bdcName}”`);
+    return bdcName;
+  }
 
   const nom = await fetchTimed(
     `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=10&accept-language=en`,
   );
   const a = nom?.address ?? {};
-  return a.city || a.town || a.village || a.municipality || nom?.name || null;
+  const name = a.city || a.town || a.village || a.municipality || nom?.name || null;
+  logEvent(name ? `Geocode: resolved to “${name}” (fallback)` : 'Geocode: no place name found', name ? 'info' : 'warn');
+  return name;
 }

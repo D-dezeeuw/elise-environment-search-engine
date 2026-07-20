@@ -10,6 +10,9 @@ import {
   OVERPASS_ENDPOINTS, OVERPASS_TIMEOUT_S, CLIENT_TIMEOUT_MS, OVERPASS_RETRY_DELAY_MS,
 } from './config.js';
 import { toQl } from './categories.js';
+import { logEvent } from './log.js';
+
+const host = (url) => new URL(url).host;
 
 export function buildQuery(fragments, area) {
   const lat = Number(area.lat);
@@ -67,14 +70,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // that's a broken query, not a busy server.
 export async function overpassSearch(fragments, area) {
   const query = buildQuery(fragments, area);
+  logEvent(`Overpass: query started (${fragments.length} categories, radius ${Math.round(area.radiusM)} m)`);
   let lastError = null;
   for (let pass = 0; pass < 2; pass++) {
-    if (pass > 0) await sleep(OVERPASS_RETRY_DELAY_MS);
+    if (pass > 0) {
+      logEvent(`Overpass: all endpoints failed, retrying in ${OVERPASS_RETRY_DELAY_MS / 1000} s`, 'warn');
+      await sleep(OVERPASS_RETRY_DELAY_MS);
+    }
     for (const endpoint of OVERPASS_ENDPOINTS) {
+      const t0 = performance.now();
       try {
-        return await requestOnce(endpoint, query);
+        const elements = await requestOnce(endpoint, query);
+        const count = Array.isArray(elements) ? elements.length : '?';
+        logEvent(`Overpass: ${host(endpoint)} answered ${count} elements in ${Math.round(performance.now() - t0)} ms`);
+        return elements;
       } catch (err) {
         if (err.kind === 'query') throw err;
+        logEvent(`Overpass: ${host(endpoint)} failed after ${Math.round(performance.now() - t0)} ms (${err.kind})`, 'warn');
         lastError = err;
       }
     }
