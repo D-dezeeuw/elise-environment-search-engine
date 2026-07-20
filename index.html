@@ -5,20 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ELISE — Environment Local Interest Search Engine</title>
   <meta name="description" content="Tell ELISE how much time, transport and budget you have — it finds parks, sights, swims and coffee around you.">
-  <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf3e7">
-  <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0722">
+  <meta name="theme-color" content="#faf3e7">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌴</text></svg>">
   <link rel="stylesheet" href="./styles.css">
 
-  <!-- Set the theme before first paint so a saved dark theme doesn't flash sand. -->
+  <!-- Set the theme before first paint so a saved dark theme doesn't flash sand.
+       Light is the default; dark is an explicit choice via the toggle. -->
   <script>
     (function () {
       var t = null;
       try { t = (JSON.parse(localStorage.getItem('elise.params') || '{}') || {}).theme; } catch (e) {}
-      if (t !== 'light' && t !== 'dark') {
-        t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      document.documentElement.dataset.theme = t;
+      document.documentElement.dataset.theme = t === 'dark' ? 'dark' : 'light';
     })();
   </script>
 

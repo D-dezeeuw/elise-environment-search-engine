@@ -35,6 +35,8 @@
   --error-bg: #fdeceb;
   --error-ink: #b3423a;
   --error-border: #f3c3bf;
+  --palm-tile: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='240'%20height='240'%20viewBox='0%200%20240%20240'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='-52'%20y1='-66'%20x2='88'%20y2='96'%20gradientUnits='userSpaceOnUse'%3E%3Cstop%20offset='0'%20stop-color='%23f791b1'/%3E%3Cstop%20offset='1'%20stop-color='%2346c6b8'/%3E%3C/linearGradient%3E%3Cg%20id='p'%20fill='url(%23g)'%3E%3Cpath%20d='M-2%2096%20C-4%2062%202%2030%2014%204%20L22%208%20C12%2034%208%2064%208%2096%20Z'/%3E%3Ccircle%20cx='13'%20cy='9'%20r='5'/%3E%3Ccircle%20cx='23'%20cy='13'%20r='4'/%3E%3Cpath%20d='M18%206%20C-6%20-8%20-34%20-6%20-52%208%20C-30%20-18%204%20-20%2018%206%20Z'/%3E%3Cpath%20d='M18%206%20C42%20-8%2070%20-6%2088%208%20C66%20-18%2032%20-20%2018%206%20Z'/%3E%3Cpath%20d='M18%206%20C0%20-20%20-2%20-48%208%20-66%20C-14%20-44%20-10%20-12%2018%206%20Z'/%3E%3Cpath%20d='M18%206%20C36%20-20%2038%20-48%2028%20-66%20C50%20-44%2046%20-12%2018%206%20Z'/%3E%3Cpath%20d='M18%206%20C10%20-26%2018%20-52%2034%20-64%20C40%20-38%2034%20-12%2018%206%20Z'/%3E%3C/g%3E%3C/defs%3E%3Cuse%20href='%23p'%20transform='translate(84%20122)'/%3E%3Cuse%20href='%23p'%20transform='translate(190%20178)%20scale(-0.5%200.5)%20rotate(6)'/%3E%3C/svg%3E");
+  --palm-opacity: 0.13;
   color-scheme: light;
 }
 
@@ -63,6 +65,8 @@
   --error-bg: rgba(255, 99, 99, 0.12);
   --error-ink: #ff8f8f;
   --error-border: rgba(255, 99, 99, 0.35);
+  --palm-tile: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='240'%20height='240'%20viewBox='0%200%20240%20240'%3E%3Cdefs%3E%3ClinearGradient%20id='g'%20x1='-52'%20y1='-66'%20x2='88'%20y2='96'%20gradientUnits='userSpaceOnUse'%3E%3Cstop%20offset='0'%20stop-color='%23ff4fa0'/%3E%3Cstop%20offset='1'%20stop-color='%2317e5d6'/%3E%3C/linearGradient%3E%3Cg%20id='p'%20fill='url(%23g)'%3E%3Cpath%20d='M-2%2096%20C-4%2062%202%2030%2014%204%20L22%208%20C12%2034%208%2064%208%2096%20Z'/%3E%3Ccircle%20cx='13'%20cy='9'%20r='5'/%3E%3Ccircle%20cx='23'%20cy='13'%20r='4'/%3E%3Cpath%20d='M18%206%20C-6%20-8%20-34%20-6%20-52%208%20C-30%20-18%204%20-20%2018%206%20Z'/%3E%3Cpath%20d='M18%206%20C42%20-8%2070%20-6%2088%208%20C66%20-18%2032%20-20%2018%206%20Z'/%3E%3Cpath%20d='M18%206%20C0%20-20%20-2%20-48%208%20-66%20C-14%20-44%20-10%20-12%2018%206%20Z'/%3E%3Cpath%20d='M18%206%20C36%20-20%2038%20-48%2028%20-66%20C50%20-44%2046%20-12%2018%206%20Z'/%3E%3Cpath%20d='M18%206%20C10%20-26%2018%20-52%2034%20-64%20C40%20-38%2034%20-12%2018%206%20Z'/%3E%3C/g%3E%3C/defs%3E%3Cuse%20href='%23p'%20transform='translate(84%20122)'/%3E%3Cuse%20href='%23p'%20transform='translate(190%20178)%20scale(-0.5%200.5)%20rotate(6)'/%3E%3C/svg%3E");
+  --palm-opacity: 0.1;
   color-scheme: dark;
 }
 
@@ -82,6 +86,20 @@ body {
   line-height: 1.45;
   transition: background-color 0.35s ease, color 0.35s ease;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Faint palm-tree texture (gradient-filled SVG tile, defined per theme
+   as --palm-tile). Fixed layer behind all content; paints over the body
+   background but under everything else. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--palm-tile);
+  background-size: 240px 240px;
+  opacity: var(--palm-opacity);
+  pointer-events: none;
 }
 
 .app {

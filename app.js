@@ -30,10 +30,8 @@ const formatTime = (mins) => {
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(PARAMS_KEY) || '{}') ?? {}; } catch { saved = {}; }
 
-const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-setValue('theme', saved.theme === 'light' || saved.theme === 'dark'
-  ? saved.theme
-  : (prefersDark ? 'dark' : 'light'));
+// Light is the default; dark only when explicitly chosen via the toggle.
+setValue('theme', saved.theme === 'dark' ? 'dark' : 'light');
 setValue('timeMinutes', TIME_PRESETS.includes(saved.timeMinutes) ? saved.timeMinutes : 60);
 setValue('transport', saved.transport in SPEEDS ? saved.transport : 'walking');
 setValue('budget', saved.budget in TIER_LABELS ? saved.budget : 'free');
@@ -64,6 +62,8 @@ computed('searchSummary', ['budget', 'transport', 'timeMinutes'], (s) => {
 // --- persistence + theme reflection ---
 watch(['theme'], () => {
   document.documentElement.dataset.theme = appState.theme;
+  document.querySelector('meta[name="theme-color"]')
+    ?.setAttribute('content', appState.theme === 'dark' ? '#0d0724' : '#faf3e7');
 });
 watch(['timeMinutes', 'transport', 'budget', 'theme'], () => {
   try {
