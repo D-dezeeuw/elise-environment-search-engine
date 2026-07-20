@@ -54,7 +54,12 @@ setValue('blankImg', BLANK_IMG);
 setValue('toasts', []);
 setValue('logs', []);
 setValue('logOpen', false);
-setValue('map', null);
+// Map state stays flat — data-each paths reference top-level keys only.
+setValue('mapTiles', []);
+setValue('mapPins', []);
+setValue('mapFrameStyle', '');
+setValue('mapOriginStyle', '');
+setValue('mapCircleStyle', '');
 
 // --- toasts + activity log ---
 let toastSeq = 0;
@@ -111,7 +116,8 @@ const ERROR_MESSAGES = {
 const finishWithError = (kind) => {
   setValue('results', []);
   setValue('resultCount', 0);
-  setValue('map', null);
+  setValue('mapTiles', []);
+  setValue('mapPins', []);
   setValue('error', ERROR_MESSAGES[kind] ?? ERROR_MESSAGES.unknown);
   setValue('screen', 'results');
 };
@@ -168,9 +174,14 @@ const runSearch = async () => {
     setValue('results', merged);
     setValue('resultCount', merged.length);
     const mapW = Math.min(600, Math.max(280, Math.round((window.innerWidth || 600) - 40)));
-    setValue('map', merged.length
+    const model = merged.length
       ? buildMapModel({ lat, lon, radiusM: area.radiusM, results: merged, width: mapW, height: 300 })
-      : null);
+      : null;
+    setValue('mapTiles', model?.tiles ?? []);
+    setValue('mapPins', model?.pins ?? []);
+    setValue('mapFrameStyle', model?.frameStyle ?? '');
+    setValue('mapOriginStyle', model?.originStyle ?? '');
+    setValue('mapCircleStyle', model?.circleStyle ?? '');
     setValue('screen', 'results');
     logEvent(`Search: finished — ${merged.length} places shown`);
     if (merged.length) toast(`✨ ${merged.length} places loaded`);

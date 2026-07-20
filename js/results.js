@@ -48,7 +48,20 @@ export function mergeAndRank(elements, wikiPages, ctx) {
     // The server query is a bounding box (the fast path); enforce the
     // promised circle here by dropping the corner extras.
     if (distanceM > radiusM) continue;
+    // Popularity/notability signals OSM already carries: a linked
+    // Wikipedia/Wikidata item, official heritage status, and how richly
+    // the POI is maintained (mappers keep popular places up to date).
+    const richness = [
+      tags.website || tags['contact:website'],
+      tags.opening_hours,
+      tags.phone || tags['contact:phone'],
+      tags.cuisine,
+    ].filter(Boolean).length;
+    const pop = (tags.wikipedia || tags.wikidata ? 40 : 0)
+      + (tags.heritage ? 25 : 0)
+      + Math.min(15, richness * 5);
     places.push({
+      pop,
       id: `${el.type}/${el.id}`,
       osmType: el.type,
       name: tags.name || cat.label,
@@ -151,7 +164,8 @@ export function mergeAndRank(elements, wikiPages, ctx) {
   return kept
     .map((p) => ({
       ...p,
-      score: (p.hasWiki ? 100 : 0) + (p.cat.boost ?? 0) - (p.distanceM / radiusM) * 50,
+      score: (p.hasWiki ? 100 : 0) + (p.pop ?? 0) + (p.cat.boost ?? 0)
+        - (p.distanceM / radiusM) * 50,
     }))
     .sort((a, b) => b.score - a.score || a.distanceM - b.distanceM)
     .slice(0, MAX_RESULTS)
