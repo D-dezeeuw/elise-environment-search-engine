@@ -10,11 +10,12 @@ import spektrum, {
 } from 'spektrum';
 import {
   SPEEDS, TRANSPORT_LABELS, TIER_LABELS, TIME_PRESETS, BLANK_IMG, SEARCH_DEADLINE_MS,
+  COUNTRY_LANGS,
 } from './js/config.js';
 import { radiusForParams, computeSearchArea } from './js/search-area.js';
 import { queryGroupsForTier } from './js/categories.js';
 import { overpassSearch } from './js/overpass.js';
-import { wikipediaSearch } from './js/wikipedia.js';
+import { wikipediaSearch, commonsNearbyImages, fetchWikiDetail } from './js/wikipedia.js';
 import { reverseGeocode } from './js/geocode.js';
 import { mergeAndRank } from './js/results.js';
 import { buildMapModel } from './js/staticmap.js';
@@ -60,6 +61,10 @@ setValue('mapPins', []);
 setValue('mapFrameStyle', '');
 setValue('mapOriginStyle', '');
 setValue('mapCircleStyle', '');
+setValue('wikiLang', null); // local-language wiki, from the geocoded country
+setValue('detailOpen', false);
+setValue('detail', {});
+setValue('detailLoading', false);
 
 // --- toasts + activity log ---
 let toastSeq = 0;
@@ -151,10 +156,13 @@ const runSearch = async () => {
     logEvent(`Search: started (${appState.searchSummary})`);
     setValue('loadingMessage', `Scanning ≈${formatDistance(area.radiusM)} around ${appState.locationLabel || 'you'}…`);
 
-    const [op, wiki] = await Promise.race([
+    const local = appState.wikiLang && appState.wikiLang !== 'en' ? appState.wikiLang : null;
+    const [op, wikiEn, wikiLocal, commons] = await Promise.race([
       Promise.allSettled([
         overpassSearch(queryGroupsForTier(appState.budget), area, ctrl.signal),
-        wikipediaSearch(lat, lon, area.radiusM),
+        wikipediaSearch(lat, lon, area.radiusM, 'en'),
+        local ? wikipediaSearch(lat, lon, area.radiusM, local) : Promise.resolve([]),
+        commonsNearbyImages(lat, lon, area.radiusM),
       ]),
       deadlinePromise,
     ]);
@@ -166,10 +174,17 @@ const runSearch = async () => {
       return;
     }
 
+    const wikiPages = [
+      ...(wikiEn.status === 'fulfilled' ? wikiEn.value : []),
+      ...(wikiLocal.status === 'fulfilled' ? wikiLocal.value : []),
+    ];
     const merged = mergeAndRank(
       op.value,
-      wiki.status === 'fulfilled' ? wiki.value : [],
-      { lat, lon, radiusM: area.radiusM, transport: appState.transport, budget: appState.budget },
+      wikiPages,
+      {
+        lat, lon, radiusM: area.radiusM, transport: appState.transport, budget: appState.budget,
+        commonsImages: commons.status === 'fulfilled' ? commons.value : [],
+      },
     );
     setValue('results', merged);
     setValue('resultCount', merged.length);
@@ -198,12 +213,17 @@ const runSearch = async () => {
 let pendingSearch = false;
 
 // Decorative label refinement — failures pass silently, coords stay valid.
+// Also resolves which local-language Wikipedia to query alongside English.
 const refineLabel = async (lat, lon) => {
-  const city = await reverseGeocode(lat, lon);
-  if (city && appState.lat === lat) {
-    const isNew = appState.locationLabel !== city;
-    setValue('locationLabel', city);
-    if (isNew) toast(`📍 ${city}`);
+  const { name, countryCode } = await reverseGeocode(lat, lon);
+  if (appState.lat !== lat) return; // origin changed while we were away
+  const lang = COUNTRY_LANGS[countryCode] ?? null;
+  setValue('wikiLang', lang);
+  if (lang) logEvent(`Geocode: local wiki set to ${lang}.wikipedia.org`);
+  if (name) {
+    const isNew = appState.locationLabel !== name;
+    setValue('locationLabel', name);
+    if (isNew) toast(`📍 ${name}`);
   }
 };
 
@@ -306,6 +326,29 @@ defineFn('savePdf', () => {
   logEvent('Export: print/PDF dialog opened');
   window.print();
 });
+
+// Detail modal: opens instantly with what we already have; the full
+// article intro + bigger image load lazily on first tap (and are cached).
+defineFn('openDetail', async (el) => {
+  const r = (appState.results ?? []).find((x) => x.id === el.dataset.id);
+  if (!r) return;
+  setValue('detail', { ...r, image: r.thumbnail });
+  setValue('detailLoading', Boolean(r.wikiPageId));
+  setValue('detailOpen', true);
+  logEvent(`Detail: opened “${r.name}”`);
+  if (!r.wikiPageId) return;
+  const full = await fetchWikiDetail(r.wikiLang || 'en', r.wikiPageId);
+  setValue('detailLoading', false);
+  if (full && appState.detail?.id === r.id) {
+    setValue('detail', {
+      ...appState.detail,
+      description: full.extract || appState.detail.description,
+      image: full.image || appState.detail.image,
+    });
+  }
+});
+
+defineFn('closeDetail', () => setValue('detailOpen', false));
 
 bindDOM();
 run();

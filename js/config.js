@@ -64,6 +64,19 @@ export const OVERPASS_RETRY_DELAY_MS = 2000; // second pass, after limits clear
 export const WIKI_TIMEOUT_MS = 8000;
 export const GEOCODE_TIMEOUT_MS = 6000;
 
+// Country → primary-language Wikipedia. Queried alongside English so local
+// landmarks that only the local wiki covers still surface. Unlisted
+// countries just use English.
+export const COUNTRY_LANGS = {
+  GR: 'el', NL: 'nl', BE: 'nl', DE: 'de', AT: 'de', CH: 'de', FR: 'fr',
+  ES: 'es', PT: 'pt', IT: 'it', DK: 'da', SE: 'sv', NO: 'no', FI: 'fi',
+  PL: 'pl', CZ: 'cs', HU: 'hu', TR: 'tr', JP: 'ja', CN: 'zh', TW: 'zh',
+  KR: 'ko', UA: 'uk', ID: 'id', TH: 'th', VN: 'vi', BR: 'pt', MX: 'es',
+  AR: 'es', CL: 'es', CO: 'es', PE: 'es', RO: 'ro', BG: 'bg', HR: 'hr',
+  RS: 'sr', SI: 'sl', SK: 'sk', LT: 'lt', LV: 'lv', EE: 'et', IS: 'is',
+  IL: 'he', SA: 'ar', AE: 'ar', EG: 'ar', MA: 'ar',
+};
+
 // Absolute ceiling for one search: whatever is still pending gets cut off
 // and the user sees a message instead of an eternal spinner.
 export const SEARCH_DEADLINE_MS = 35000;

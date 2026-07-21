@@ -735,6 +735,46 @@ main { flex: 1; }
   overflow-wrap: anywhere;
 }
 
+/* ---------- place detail modal ---------- */
+
+.card-title[role="button"] { cursor: pointer; }
+
+.title-chevron {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.detail-modal { max-height: 82dvh; }
+
+.detail-body { overflow-y: auto; }
+
+.detail-hero {
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.detail-fee {
+  font-size: 0.9rem;
+  margin-top: 6px;
+}
+
+.detail-loading {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.desc-full {
+  font-size: 0.92rem;
+  margin-top: 10px;
+  white-space: pre-line;
+}
+
 .log-list li.warn { color: #b8860b; }
 :root[data-theme="dark"] .log-list li.warn { color: #ffd166; }
 .log-list li.error { color: var(--error-ink); }

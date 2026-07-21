@@ -23,6 +23,8 @@ const fetchTimed = async (url) => {
   }
 };
 
+// Resolves { name, countryCode } — the country drives which local-language
+// Wikipedia is queried alongside English.
 export async function reverseGeocode(lat, lon) {
   logEvent('Geocode: resolving place name started');
   const bdc = await fetchTimed(
@@ -30,8 +32,8 @@ export async function reverseGeocode(lat, lon) {
   );
   const bdcName = bdc?.city || bdc?.locality || bdc?.principalSubdivision;
   if (bdcName) {
-    logEvent(`Geocode: resolved to “${bdcName}”`);
-    return bdcName;
+    logEvent(`Geocode: resolved to “${bdcName}” (${bdc.countryCode ?? '??'})`);
+    return { name: bdcName, countryCode: bdc.countryCode ?? null };
   }
 
   const nom = await fetchTimed(
@@ -40,5 +42,5 @@ export async function reverseGeocode(lat, lon) {
   const a = nom?.address ?? {};
   const name = a.city || a.town || a.village || a.municipality || nom?.name || null;
   logEvent(name ? `Geocode: resolved to “${name}” (fallback)` : 'Geocode: no place name found', name ? 'info' : 'warn');
-  return name;
+  return { name, countryCode: a.country_code ? a.country_code.toUpperCase() : null };
 }

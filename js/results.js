@@ -98,21 +98,33 @@ export function mergeAndRank(elements, wikiPages, ctx) {
     }
   }
 
-  // --- normalize Wikipedia ---
-  const wikis = (wikiPages ?? []).map((pg) => {
+  // --- normalize Wikipedia (multiple language wikis) ---
+  const rawWikis = (wikiPages ?? []).map((pg) => {
     const c = pg.coordinates?.[0];
     if (!c || pg.pageid == null) return null;
+    const lang = pg.lang ?? 'en';
     return {
       pageid: pg.pageid,
+      lang,
       title: pg.title ?? '',
       lat: c.lat,
       lon: c.lon,
       extract: (pg.extract || '').trim() || null,
       thumb: pg.thumbnail?.source ?? null,
-      url: `https://en.wikipedia.org/?curid=${pg.pageid}`,
+      url: `https://${lang}.wikipedia.org/?curid=${pg.pageid}`,
       matched: false,
     };
   }).filter(Boolean);
+
+  // Cross-language dedupe: the same subject appears on multiple wikis at
+  // (nearly) the same coordinates — keep the English one when both exist.
+  rawWikis.sort((a, b) => (a.lang === 'en' ? -1 : 1) - (b.lang === 'en' ? -1 : 1));
+  const wikis = [];
+  for (const w of rawWikis) {
+    const dup = wikis.some((k) => k.lang !== w.lang
+      && haversineM(k.lat, k.lon, w.lat, w.lon) < 60);
+    if (!dup) wikis.push(w);
+  }
 
   // --- enrich Overpass results with Wikipedia matches ---
   for (const w of wikis) {
@@ -129,6 +141,8 @@ export function mergeAndRank(elements, wikiPages, ctx) {
       hit.description = hit.description ?? w.extract;
       hit.thumbnail = hit.thumbnail ?? w.thumb;
       hit.wikiUrl = w.url;
+      hit.wikiPageId = w.pageid;
+      hit.wikiLang = w.lang;
     }
   }
 
@@ -140,7 +154,7 @@ export function mergeAndRank(elements, wikiPages, ctx) {
       const d = haversineM(lat, lon, w.lat, w.lon);
       if (d > radiusM) continue;
       kept.push({
-        id: `wiki/${w.pageid}`,
+        id: `wiki/${w.lang}/${w.pageid}`,
         osmType: 'wiki',
         name: w.title,
         cat: { label: 'Landmark', icon: '🏛️', boost: 0 },
@@ -154,8 +168,25 @@ export function mergeAndRank(elements, wikiPages, ctx) {
         description: w.extract,
         thumbnail: w.thumb,
         wikiUrl: w.url,
+        wikiPageId: w.pageid,
+        wikiLang: w.lang,
         hasWiki: true,
       });
+    }
+  }
+
+  // --- Commons photo fallback for places without an article image ---
+  const commons = ctx.commonsImages ?? [];
+  if (commons.length) {
+    for (const p of kept) {
+      if (p.thumbnail) continue;
+      let best = null;
+      let bestD = 120; // a photo geotagged further away is probably of something else
+      for (const im of commons) {
+        const d = haversineM(p.lat, p.lon, im.lat, im.lon);
+        if (d < bestD) { bestD = d; best = im; }
+      }
+      if (best) p.thumbnail = best.thumb;
     }
   }
 
@@ -204,6 +235,8 @@ function present(p, transport, speedKmh, n) {
     description: p.description,
     thumbnail: p.thumbnail,
     wikiUrl: p.wikiUrl,
+    wikiPageId: p.wikiPageId ?? null,
+    wikiLang: p.wikiLang ?? null,
     directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=${GMAPS_MODES[transport] ?? 'walking'}`,
     osmUrl: `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`,
   };

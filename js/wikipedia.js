@@ -1,23 +1,42 @@
 /*
-  ELISE — Wikipedia GeoSearch client.
+  ELISE — Wikimedia clients: Wikipedia GeoSearch (any language wiki),
+  Commons nearby images, and on-demand article details.
 
-  Surfaces nearby landmarks with a short description and thumbnail, used
-  to enrich Overpass results and to add sight-worthy places OSM tags
-  alone don't rank. Keyless; CORS via origin=*. A failure here is
-  non-fatal — the app degrades to Overpass-only results.
+  All keyless, CORS via origin=*. Failures are non-fatal everywhere —
+  these enrich results, they never block them.
 */
 
-import { WIKI_ENDPOINT, WIKI_MAX_RADIUS_M, WIKI_TIMEOUT_MS } from './config.js';
+import { WIKI_MAX_RADIUS_M, WIKI_TIMEOUT_MS } from './config.js';
 import { logEvent } from './log.js';
 
-export async function wikipediaSearch(lat, lon, radiusM) {
+const apiUrl = (host, params) => {
+  const url = new URL(`https://${host}/w/api.php`);
+  url.searchParams.set('action', 'query');
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('origin', '*');
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  return url;
+};
+
+const fetchPages = async (url) => {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), WIKI_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return Object.values(json?.query?.pages ?? {});
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+export async function wikipediaSearch(lat, lon, radiusM, lang = 'en') {
   // ggsradius is hard-capped by the API at 10 km.
   const r = Math.min(Math.max(Math.round(radiusM), 10), WIKI_MAX_RADIUS_M);
-  const url = new URL(WIKI_ENDPOINT);
-  const params = {
-    action: 'query',
-    format: 'json',
-    origin: '*',
+  const url = apiUrl(`${lang}.wikipedia.org`, {
     generator: 'geosearch',
     ggscoord: `${lat}|${lon}`,
     ggsradius: String(r),
@@ -30,27 +49,79 @@ export async function wikipediaSearch(lat, lon, radiusM) {
     explaintext: '1',
     exchars: '280',
     exlimit: '20',
-  };
-  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  // Hard timeout: a black-holed connection here must never stall the
-  // search — enrichment is optional, the spinner is not.
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), WIKI_TIMEOUT_MS);
-  logEvent(`Wikipedia: geosearch started (radius ${r} m)`);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) {
-      logEvent(`Wikipedia: geosearch failed (${res.status})`, 'warn');
-      return [];
-    }
-    const json = await res.json();
-    const pages = Object.values(json?.query?.pages ?? {});
-    logEvent(`Wikipedia: ${pages.length} nearby articles found`);
-    return pages;
-  } catch {
-    logEvent('Wikipedia: geosearch failed (network/timeout)', 'warn');
+  });
+  logEvent(`Wikipedia(${lang}): geosearch started (radius ${r} m)`);
+  const pages = await fetchPages(url);
+  if (!pages) {
+    logEvent(`Wikipedia(${lang}): geosearch failed`, 'warn');
     return [];
-  } finally {
-    clearTimeout(timer);
   }
+  logEvent(`Wikipedia(${lang}): ${pages.length} nearby articles found`);
+  return pages.map((pg) => ({ ...pg, lang }));
+}
+
+// Nearby freely-licensed photos — used as thumbnail fallback for places
+// without an article image.
+export async function commonsNearbyImages(lat, lon, radiusM) {
+  const r = Math.min(Math.max(Math.round(radiusM), 10), WIKI_MAX_RADIUS_M);
+  const url = apiUrl('commons.wikimedia.org', {
+    generator: 'geosearch',
+    ggscoord: `${lat}|${lon}`,
+    ggsradius: String(r),
+    ggslimit: '30',
+    ggsnamespace: '6', // File:
+    prop: 'coordinates|imageinfo',
+    iiprop: 'url',
+    iiurlwidth: '320',
+  });
+  logEvent(`Commons: image geosearch started (radius ${r} m)`);
+  const pages = await fetchPages(url);
+  if (!pages) {
+    logEvent('Commons: image geosearch failed', 'warn');
+    return [];
+  }
+  const images = pages
+    .map((pg) => ({
+      lat: pg.coordinates?.[0]?.lat,
+      lon: pg.coordinates?.[0]?.lon,
+      thumb: pg.imageinfo?.[0]?.thumburl ?? null,
+    }))
+    .filter((im) => im.lat != null && im.lon != null
+      && im.thumb && /\.(jpe?g|png|webp)$/i.test(im.thumb.split('?')[0]));
+  logEvent(`Commons: ${images.length} usable photos found`);
+  return images;
+}
+
+// Full article intro + a bigger image, fetched only when the user opens a
+// detail modal, and cached so repeat taps cost nothing.
+const detailCache = new Map();
+
+export async function fetchWikiDetail(lang, pageid) {
+  const key = `${lang}/${pageid}`;
+  if (detailCache.has(key)) {
+    logEvent(`Wikipedia(${lang}): detail for #${pageid} served from cache`);
+    return detailCache.get(key);
+  }
+  const url = apiUrl(`${lang}.wikipedia.org`, {
+    pageids: String(pageid),
+    prop: 'extracts|pageimages',
+    exintro: '1',
+    explaintext: '1',
+    piprop: 'thumbnail',
+    pithumbsize: '640',
+  });
+  logEvent(`Wikipedia(${lang}): detail fetch started for #${pageid}`);
+  const pages = await fetchPages(url);
+  const page = pages?.find((pg) => pg.pageid === pageid) ?? pages?.[0];
+  if (!page) {
+    logEvent(`Wikipedia(${lang}): detail fetch failed for #${pageid}`, 'warn');
+    return null;
+  }
+  const detail = {
+    extract: (page.extract || '').trim() || null,
+    image: page.thumbnail?.source ?? null,
+  };
+  detailCache.set(key, detail);
+  logEvent(`Wikipedia(${lang}): detail loaded (${detail.extract?.length ?? 0} chars)`);
+  return detail;
 }

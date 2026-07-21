@@ -174,7 +174,8 @@
               <span class="media-icon" data-if="!r.thumbnail">{{r.icon}}</span>
             </div>
             <div class="card-body">
-              <h2 class="card-title"><span class="card-n">{{r.n}}</span> {{r.name}}</h2>
+              <h2 class="card-title" data-action="click" data-fn="openDetail" :data-id="r.id"
+                  role="button" tabindex="0"><span class="card-n">{{r.n}}</span> {{r.name}} <span class="title-chevron">›</span></h2>
               <p class="meta">
                 <span class="badge" :class="{free: r.tier === 'free', freeplus: r.tier === 'freeplus', paid: r.tier === 'paid'}">{{r.tierLabel}}</span>
                 {{r.categoryLabel}}{{r.cuisineLabel}} · {{r.distanceLabel}} · {{r.travelLabel}}
@@ -197,7 +198,8 @@
     <footer class="footer">
       <p>Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
         contributors via Overpass API · Landmarks from
-        <a href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a></p>
+        <a href="https://en.wikipedia.org" target="_blank" rel="noopener">Wikipedia</a> ·
+        Photos from <a href="https://commons.wikimedia.org" target="_blank" rel="noopener">Wikimedia Commons</a></p>
       <p>Built with <a href="https://github.com/D-dezeeuw/spektrum" target="_blank" rel="noopener">spektrum</a> 🌴</p>
     </footer>
   </div>
@@ -211,9 +213,37 @@
   <button type="button" class="log-fab" :class="{alert: logHasWarn}" data-action="click" data-fn="toggleLog"
           aria-label="Show activity log">📋</button>
 
+  <!-- place detail modal, filled lazily on tap -->
+  <div class="modal-overlay" data-if="detailOpen" data-action="click.self" data-fn="closeDetail"
+       role="dialog" aria-modal="true" aria-label="Place details">
+    <div class="modal detail-modal">
+      <div class="modal-head">
+        <h2>{{detail.name}}</h2>
+        <button type="button" class="chip" data-action="click" data-fn="closeDetail">Close</button>
+      </div>
+      <div class="detail-body">
+        <img class="detail-hero" data-if="detail.image" :src="detail.image || blankImg" alt="">
+        <p class="meta">
+          <span class="badge" :class="{free: detail.tier === 'free', freeplus: detail.tier === 'freeplus', paid: detail.tier === 'paid'}">{{detail.tierLabel}}</span>
+          {{detail.categoryLabel}}{{detail.cuisineLabel}} · {{detail.distanceLabel}} · {{detail.travelLabel}}
+        </p>
+        <p class="detail-fee">💶 {{detail.feeLabel}}</p>
+        <p class="hours" data-if="detail.openingHours">🕐 {{detail.openingHours}}</p>
+        <p class="detail-loading" data-if="detailLoading">Fetching more from Wikipedia…</p>
+        <p class="desc-full" data-if="detail.description">{{detail.description}}</p>
+        <p class="links">
+          <a class="link-primary" :href="detail.directionsUrl" target="_blank" rel="noopener">Directions</a>
+          <a :href="detail.osmUrl" target="_blank" rel="noopener">Map</a>
+          <a data-if="detail.website" :href="detail.website" target="_blank" rel="noopener">Website</a>
+          <a data-if="detail.wikiUrl" :href="detail.wikiUrl" target="_blank" rel="noopener">Wikipedia</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" data-if="logOpen" data-action="click.self" data-fn="toggleLog"
        role="dialog" aria-modal="true" aria-label="Activity log">
-    <div class="modal">
+    <div class="modal log-modal">
       <div class="modal-head">
         <h2>Activity log</h2>
         <button type="button" class="chip" data-action="click" data-fn="toggleLog">Close</button>
