@@ -39,15 +39,31 @@ const fetchPages = async (url) => {
 
 // Local-wiki pages that link an English equivalent get English content:
 // title, extract, image, pageid, and detail target all switch to en —
-// the local wiki stays purely a discovery layer. One batched request.
+// the local wiki stays purely a discovery layer.
 async function anglicize(pages, lang) {
+  if (!pages.length) return pages;
+  // Interlanguage links need their own dedicated request: bundling
+  // langlinks into the multi-prop geosearch makes the API paginate and
+  // silently drop them for most pages (the bug that kept Greek text on
+  // screen). A pageids-only prop=langlinks call returns them all at once.
+  const byId = new Map(pages.map((p) => [p.pageid, p]));
+  const llJson = await fetchJson(apiUrl(`${lang}.wikipedia.org`, {
+    pageids: [...byId.keys()].join('|'),
+    prop: 'langlinks',
+    lllang: 'en',
+    lllimit: 'max',
+  }));
   const linked = new Map(); // english title -> local page
-  for (const pg of pages) {
+  for (const pg of Object.values(llJson?.query?.pages ?? {})) {
     const en = pg.langlinks?.find((l) => l.lang === 'en');
     const title = en?.['*'] ?? en?.title;
-    if (title) linked.set(title, pg);
+    const local = byId.get(pg.pageid);
+    if (title && local) linked.set(title, local);
   }
-  if (!linked.size) return pages;
+  if (!linked.size) {
+    logEvent(`Wikipedia(${lang}): no English equivalents found`);
+    return pages;
+  }
   logEvent(`Wikipedia(${lang}): resolving ${linked.size} English equivalents`);
   const url = apiUrl('en.wikipedia.org', {
     titles: [...linked.keys()].join('|'),
@@ -98,11 +114,6 @@ export async function wikipediaSearch(lat, lon, radiusM, lang = 'en') {
     exchars: '280',
     exlimit: '20',
   };
-  if (lang !== 'en') {
-    params.prop += '|langlinks';
-    params.lllang = 'en';
-    params.lllimit = 'max';
-  }
   const url = apiUrl(`${lang}.wikipedia.org`, params);
   logEvent(`Wikipedia(${lang}): geosearch started (radius ${r} m)`);
   const pages = await fetchPages(url);
