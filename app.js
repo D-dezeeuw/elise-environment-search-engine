@@ -51,6 +51,7 @@ setValue('results', []);
 setValue('resultCount', 0);
 setValue('error', '');
 setValue('loadingMessage', '');
+setValue('loadingQuip', '');
 setValue('blankImg', BLANK_IMG);
 setValue('toasts', []);
 setValue('logs', []);
@@ -90,6 +91,36 @@ computed('radiusPreview', ['timeMinutes', 'transport'], (s) => {
 computed('searchSummary', ['budget', 'transport', 'timeMinutes'], (s) => {
   const { radiusM } = radiusForParams(s.timeMinutes, s.transport);
   return `${TIER_LABELS[s.budget]} · ${TRANSPORT_LABELS[s.transport]} · ${formatTime(s.timeMinutes)} · ≈${formatDistance(radiusM)}`;
+});
+
+// --- loading quips: playful rotating status lines while searching ---
+const LOADING_QUIPS = [
+  'Asking OpenStreetMap very politely…',
+  'Combing the beach for hidden spots…',
+  'Reading Wikipedia so you don’t have to…',
+  'Counting palm trees…',
+  'Negotiating with seagulls…',
+  'Polishing viewpoints…',
+  'Checking who’s open right now…',
+  'Borrowing photos from Wikimedia…',
+  'Measuring distances in flip-flops…',
+  'Drawing tiny maps…',
+];
+
+let quipTimer = null;
+watch(['screen'], () => {
+  if (appState.screen === 'loading') {
+    if (quipTimer) return;
+    let i = Math.floor(Math.random() * LOADING_QUIPS.length);
+    setValue('loadingQuip', LOADING_QUIPS[i]);
+    quipTimer = setInterval(() => {
+      i = (i + 1) % LOADING_QUIPS.length;
+      setValue('loadingQuip', LOADING_QUIPS[i]);
+    }, 1400);
+  } else if (quipTimer) {
+    clearInterval(quipTimer);
+    quipTimer = null;
+  }
 });
 
 // --- persistence + theme reflection ---

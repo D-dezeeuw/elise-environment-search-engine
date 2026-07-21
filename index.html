@@ -124,8 +124,11 @@
 
       <!-- ============ loading ============ -->
       <section class="screen loading-screen" data-if="screen === 'loading'" aria-live="polite">
-        <div class="spinner" role="img" aria-label="Searching"></div>
         <p class="loading-message">{{loadingMessage}}</p>
+        <div class="progress-track" role="img" aria-label="Searching">
+          <div class="progress-glider"></div>
+        </div>
+        <p class="loading-quip">{{loadingQuip}}</p>
       </section>
 
       <!-- ============ results ============ -->

@@ -18,14 +18,13 @@ const apiUrl = (host, params) => {
   return url;
 };
 
-const fetchPages = async (url) => {
+const fetchJson = async (url) => {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), WIKI_TIMEOUT_MS);
   try {
     const res = await fetch(url, { signal: ctrl.signal });
     if (!res.ok) return null;
-    const json = await res.json();
-    return Object.values(json?.query?.pages ?? {});
+    return await res.json();
   } catch {
     return null;
   } finally {
@@ -33,10 +32,59 @@ const fetchPages = async (url) => {
   }
 };
 
+const fetchPages = async (url) => {
+  const json = await fetchJson(url);
+  return json ? Object.values(json?.query?.pages ?? {}) : null;
+};
+
+// Local-wiki pages that link an English equivalent get English content:
+// title, extract, image, pageid, and detail target all switch to en —
+// the local wiki stays purely a discovery layer. One batched request.
+async function anglicize(pages, lang) {
+  const linked = new Map(); // english title -> local page
+  for (const pg of pages) {
+    const en = pg.langlinks?.find((l) => l.lang === 'en');
+    const title = en?.['*'] ?? en?.title;
+    if (title) linked.set(title, pg);
+  }
+  if (!linked.size) return pages;
+  logEvent(`Wikipedia(${lang}): resolving ${linked.size} English equivalents`);
+  const url = apiUrl('en.wikipedia.org', {
+    titles: [...linked.keys()].join('|'),
+    redirects: '1',
+    prop: 'extracts|pageimages',
+    exintro: '1',
+    explaintext: '1',
+    exchars: '280',
+    exlimit: 'max',
+    piprop: 'thumbnail',
+    pithumbsize: '240',
+  });
+  const json = await fetchJson(url);
+  if (!json) return pages;
+  // The API may rename requested titles (normalization/redirects) — remap.
+  for (const r of [...(json.query?.normalized ?? []), ...(json.query?.redirects ?? [])]) {
+    if (linked.has(r.from)) linked.set(r.to, linked.get(r.from));
+  }
+  let resolved = 0;
+  for (const epg of Object.values(json.query?.pages ?? {})) {
+    const local = linked.get(epg.title);
+    if (!local || epg.pageid == null || epg.pageid < 0) continue;
+    local.lang = 'en';
+    local.pageid = epg.pageid;
+    local.title = epg.title;
+    if (epg.extract) local.extract = epg.extract;
+    if (epg.thumbnail) local.thumbnail = epg.thumbnail;
+    resolved += 1;
+  }
+  logEvent(`Wikipedia(${lang}): ${resolved} article(s) switched to English`);
+  return pages;
+}
+
 export async function wikipediaSearch(lat, lon, radiusM, lang = 'en') {
   // ggsradius is hard-capped by the API at 10 km.
   const r = Math.min(Math.max(Math.round(radiusM), 10), WIKI_MAX_RADIUS_M);
-  const url = apiUrl(`${lang}.wikipedia.org`, {
+  const params = {
     generator: 'geosearch',
     ggscoord: `${lat}|${lon}`,
     ggsradius: String(r),
@@ -49,7 +97,13 @@ export async function wikipediaSearch(lat, lon, radiusM, lang = 'en') {
     explaintext: '1',
     exchars: '280',
     exlimit: '20',
-  });
+  };
+  if (lang !== 'en') {
+    params.prop += '|langlinks';
+    params.lllang = 'en';
+    params.lllimit = 'max';
+  }
+  const url = apiUrl(`${lang}.wikipedia.org`, params);
   logEvent(`Wikipedia(${lang}): geosearch started (radius ${r} m)`);
   const pages = await fetchPages(url);
   if (!pages) {
@@ -57,7 +111,8 @@ export async function wikipediaSearch(lat, lon, radiusM, lang = 'en') {
     return [];
   }
   logEvent(`Wikipedia(${lang}): ${pages.length} nearby articles found`);
-  return pages.map((pg) => ({ ...pg, lang }));
+  const tagged = pages.map((pg) => ({ ...pg, lang }));
+  return lang === 'en' ? tagged : anglicize(tagged, lang);
 }
 
 // Nearby freely-licensed photos — used as thumbnail fallback for places

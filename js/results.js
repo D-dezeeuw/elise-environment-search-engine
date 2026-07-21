@@ -116,14 +116,21 @@ export function mergeAndRank(elements, wikiPages, ctx) {
     };
   }).filter(Boolean);
 
-  // Cross-language dedupe: the same subject appears on multiple wikis at
-  // (nearly) the same coordinates — keep the English one when both exist.
+  // Dedupe across wikis: exact same article (lang+pageid — happens when a
+  // local page was switched to its English equivalent that the English
+  // geosearch also returned), then same subject on different wikis at
+  // (nearly) the same coordinates — English preferred.
   rawWikis.sort((a, b) => (a.lang === 'en' ? -1 : 1) - (b.lang === 'en' ? -1 : 1));
+  const seenIds = new Set();
   const wikis = [];
   for (const w of rawWikis) {
-    const dup = wikis.some((k) => k.lang !== w.lang
+    const idKey = `${w.lang}/${w.pageid}`;
+    if (seenIds.has(idKey)) continue;
+    const dupNear = wikis.some((k) => k.lang !== w.lang
       && haversineM(k.lat, k.lon, w.lat, w.lon) < 60);
-    if (!dup) wikis.push(w);
+    if (dupNear) continue;
+    seenIds.add(idKey);
+    wikis.push(w);
   }
 
   // --- enrich Overpass results with Wikipedia matches ---

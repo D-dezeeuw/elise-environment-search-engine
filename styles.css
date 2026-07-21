@@ -357,7 +357,44 @@ main { flex: 1; }
 
 @keyframes spin { to { transform: rotate(1turn); } }
 
-.loading-message { color: var(--muted); }
+.loading-message {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.progress-track {
+  width: min(280px, 72%);
+  height: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--chip-bg);
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-glider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 45%;
+  border-radius: 999px;
+  background: var(--accent-grad);
+  box-shadow: var(--glow-pink);
+  animation: glide 1.2s ease-in-out infinite;
+}
+
+@keyframes glide {
+  from { left: -45%; }
+  to { left: 100%; }
+}
+
+.loading-quip {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 0.9rem;
+  min-height: 1.4em;
+  text-align: center;
+}
 
 /* ---------- results ---------- */
 
@@ -811,6 +848,7 @@ main { flex: 1; }
 
 @media (prefers-reduced-motion: reduce) {
   .spinner { animation-duration: 2.5s; }
+  .progress-glider { animation-duration: 3s; }
   body, .chip, .segmented button, .cta { transition: none; }
 }
 
